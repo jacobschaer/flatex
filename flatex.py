@@ -12,11 +12,38 @@ import sys
 def is_input(line):
     """
     Determines whether or not a read in line contains an 
-uncommented out \input{} statement. Allows only spaces between 
+uncommented out \input{} or \include{} statement. Allows only spaces between 
 start of line and '\input{}'. 
     """
     #tex_input_re = r"""^\s*\\input{[^}]*}""" # input only 
     tex_input_re = r"""(^[^\%]*\\input{[^}]*})|(^[^\%]*\\include{[^}]*})""" # input or include
+    return re.search(tex_input_re, line) 
+
+def is_subfile(line):
+    """
+    Determines whether or not a read in line contains an 
+uncommented out \subfile{} statement. Allows only spaces between 
+start of line and '\subfile{}'. 
+    """
+    tex_input_re = r"""^[^\%]*\\subfile{[^}]*}""" # subfile
+    return re.search(tex_input_re, line)
+
+def is_begin_document(line):
+    """
+    Determines whether or not a read in line contains an 
+uncommented out \begin{document} statement. Allows only spaces between 
+start of line and '\begin{document}'. 
+    """
+    tex_input_re = r"""^[^\%]*\\begin{document}""" # subfile
+    return re.search(tex_input_re, line) 
+
+def is_end_document(line):
+    """
+    Determines whether or not a read in line contains an 
+uncommented out \begin{document} statement. Allows only spaces between 
+start of line and '\begin{document}'. 
+    """
+    tex_input_re = r"""^[^\%]*\\end{document}""" # subfile
     return re.search(tex_input_re, line) 
 
 def get_input(line):
@@ -39,7 +66,7 @@ with the the relate reference found in that document.
     filePath = filePath + ".tex"
     return filePath
 
-def expand_file(base_file):
+def expand_file(base_file, subfile=False):
     """
     Recursively-defined function that takes as input a file and 
 returns it with all the inputs replaced with the contents of the 
@@ -47,11 +74,24 @@ referenced file.
     """
     output_lines = [] 
     f = open(base_file, "r")
+    in_body = False
+
     for line in f:
+        if subfile:
+            if in_body and is_end_document(line):
+                in_body = False
+            if not in_body:
+                if is_begin_document(line):
+                    in_body = True
+                continue
         if is_input(line):
             new_base_file = combine_path(current_path, get_input(line))
             output_lines += expand_file(new_base_file)
-            output_lines.append('\n') # add a new line after each file input
+            #output_lines.append('\n') # add a new line after each file input
+        elif is_subfile(line):
+            new_base_file = combine_path(current_path, get_input(line))
+            output_lines += expand_file(new_base_file, subfile=True)
+            #output_lines.append('\n') # add a new line after each file input
         else:
             output_lines.append(line)
     f.close() 
